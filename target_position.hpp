@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-class IconPosition
+class TargetPosition
 {
 public:
 virtual int init()=0;
