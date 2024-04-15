@@ -8,13 +8,21 @@ add_definitions(-DWINDOWS)
 find_package(OpenCV)
 
 # 规定.h头文件路径
-include_directories(${PROJECT_SOURCE_DIR}
+include_directories(${PROJECT_SOURCE_DIR}/src
     ${OpenCV_INCLUDE_DIRS})
 
 
-add_library(target_position SHARED target_position_sdk.cpp target_position_template.cpp)
+add_library(target_position SHARED 
+        sdk_interface/target_position_sdk.cpp
+        src/target_position_template.cpp)
 target_link_libraries(target_position ${OpenCV_LIBS})
 
 # 生成可执行文件
+
+include_directories(${PROJECT_SOURCE_DIR}/sdk_interface)
+
 add_executable(demo demo.cpp )
 target_link_libraries(demo target_position  ${OpenCV_LIBS})
+
+add_executable(train train.cpp )
+target_link_libraries(train target_position  ${OpenCV_LIBS})
