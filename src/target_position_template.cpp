@@ -1,6 +1,15 @@
 #include "target_position_template.hpp"
 #include <fstream>
 #include <filesystem>
+
+template <typename T>
+T ReadBinaryLittleEndian(std::istream *stream)
+{
+    T data_little_endian;
+    stream->read(reinterpret_cast<char *>(&data_little_endian), sizeof(T));
+    return data_little_endian;
+}
+
 ITPTemplate::ITPTemplate(/* args */)
 {
 }
@@ -89,7 +98,6 @@ int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vect
         }
 
         std::cout << "maxVal" << maxVal << std::endl;
-        ;
     }
 
     return 0;
@@ -103,20 +111,20 @@ cv::Mat ITPTemplate::loadTMP(const std::string &_file)
         std::cout << "cant load\n";
         return cv::Mat();
     }
-    int width, height;
-    in_file >> width >> height;
-    std::cout << width << "wh" << height << "\n";
+
+    int height=ReadBinaryLittleEndian<int>(&in_file);
+    int width=ReadBinaryLittleEndian<int>(&in_file);
+
     cv::Mat target(height, width, CV_8UC1);
     for (size_t i = 0; i < height; i++)
     {
         for (size_t j = 0; j < width; j++)
         {
-            int pixel;
-            in_file >> pixel;
+            uchar pixel = ReadBinaryLittleEndian<uchar>(&in_file);
             target.at<uchar>(i, j) = pixel;
         }
     }
-    cv::imwrite("tmp.png", target);
+    // cv::imwrite("tmp.png", target);
     return target;
 }
 //=================================================================
@@ -174,12 +182,15 @@ int TTPTemplate::saveTMP(const std::string &_file, const cv::Mat &_target)
         std::cout << "cant save\n";
         return -1;
     }
-    out_file << _target.cols << " " << _target.rows;
+    out_file.write((char*)&_target.rows,sizeof(int));
+    out_file.write((char*)&_target.cols,sizeof(int));
+
     for (size_t i = 0; i < _target.rows; i++)
     {
         for (size_t j = 0; j < _target.cols; j++)
         {
-            out_file << " " << (int)_target.at<uchar>(i, j);
+            uchar pixel= _target.at<uchar>(i, j);
+            out_file.write((char*)&pixel,sizeof(uchar));
         }
     }
     out_file.close();

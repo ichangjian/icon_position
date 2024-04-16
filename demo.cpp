@@ -2,20 +2,19 @@
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
-int main(int argc, char **argv)
+#include <filesystem>
+
+int test_image(const std::string &_file)
 {
-    if (argc != 2)
+    cv::Mat image = cv::imread(_file); // 读取图像
+    if (image.empty())
     {
-        std::cout << "input error\n";
-        std::cout << "Usage: path_image\n";
+        std::cout << "cant read " << _file << std::endl;
         return -1;
     }
-    cv::Mat img = cv::imread(argv[1], 0); // 读取图像
-    if (img.empty())
-    {
-        std::cout << "cant read " << argv[1] << std::endl;
-        return -1;
-    }
+    cv::Mat img;
+
+    cv::cvtColor(image, img, cv::COLOR_BGR2GRAY);
     void *handle = create_target_position();
     init_target_position(handle, "./model/");
 
@@ -27,18 +26,17 @@ int main(int argc, char **argv)
     std::vector<TargetRect> rects;
     get_target_position(handle, image_data, rects);
 
-    cv::Mat image;
-    cv::cvtColor(img, image, cv::COLOR_GRAY2BGR);
     for (size_t i = 0; i < rects.size(); i++)
     {
         cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
         std::cout << box << "\n";
-        cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255));
-        cv::putText(image, rects[i].id, cv::Point(rects[i].x, rects[i].y), 1, 3, cv::Scalar(0, 255, 0));
+        cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
+        cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
+        cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
     }
     if (rects.size() == 0)
     {
-        cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255));
+        cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
     }
 
     cv::namedWindow("TargetResult", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO); // 窗口
@@ -46,6 +44,91 @@ int main(int argc, char **argv)
     cv::imshow("TargetResult", image);
     cv::waitKey();
     release_target_position(handle);
+    return 0;
+}
+
+int test_video(const std::string &_file)
+{
+    cv::VideoCapture cap(_file);
+    if (!cap.isOpened())
+    {
+        std::cout << "cant read " << _file << std::endl;
+        return -1;
+    }
+
+    void *handle = create_target_position();
+    init_target_position(handle, "./model/");
+    cv::namedWindow("TargetResult", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO); // 窗口
+    cv::resizeWindow("TargetResult", 1280, 720);
+    cv::Mat frame;
+    int index = 0;
+    while (true)
+    {
+        cap >> frame;      // 等价于cap.read(frame);
+        if (frame.empty()) // 如果某帧为空则退出循环
+            break;
+        if (index++ % 10 != 0)
+            continue;
+        cv::Mat img;
+
+        cv::cvtColor(frame, img, cv::COLOR_BGR2GRAY);
+        ImageData image_data;
+        image_data.channel = img.channels();
+        image_data.data = img.data;
+        image_data.height = img.rows;
+        image_data.width = img.cols;
+        std::vector<TargetRect> rects;
+        get_target_position(handle, image_data, rects);
+
+        cv::Mat image = frame;
+        for (size_t i = 0; i < rects.size(); i++)
+        {
+            cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
+            std::cout << box << "\n";
+            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
+            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
+            cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
+        }
+        if (rects.size() == 0)
+        {
+            cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
+        }
+
+        cv::imshow("TargetResult", image);
+        if (cv::waitKey(1) == 27)
+        {          // 检测是否有按下退出键
+            break; // 退出程序
+        }
+        if (cv::getWindowProperty("TargetResult", cv::WND_PROP_AUTOSIZE) == -1)
+        {
+            cv::destroyAllWindows();
+            break;
+        }
+    }
+    cap.release(); // 释放资源
+
+    release_target_position(handle);
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        std::cout << "input error\n";
+        std::cout << "Usage: path_image_or_video\n";
+        return -1;
+    }
+    std::string file = argv[1];
+    std::string fileExtension = std::filesystem::path(file).extension().string();
+    if (fileExtension == ".png" || fileExtension == ".jpg")
+    {
+        return test_image(file);
+    }
+    else
+    {
+        return test_video(file);
+    }
 
     return 0;
 }

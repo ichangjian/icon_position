@@ -65,23 +65,30 @@ int main(int argc, char **argv)
     cv::resizeWindow("TargetRect", 1280, 720);
     setMouseCallback("TargetRect", onmouse, &image); // 注册鼠标事件到“TargetRect”窗口，即使在该窗口下出现鼠标事件就执行onmouse函数的内容,最后一个参数为传入的数据。这里其实没有用到
     imshow("TargetRect", image);
-    // img.copyTo(temp);放在这里会出现拖影的现象，因为上一次画的矩形并没有被更新
+
+    box = cv::Rect(0, 0, 0, 0);
+    bool flag_save = false;
     while (1)
     {
-        // img.copyTo(temp);//这句话放在if外，注释掉if里面那句.程序没有问题，但每次遍历循环时都会执行一次图像数据的复制传递操作，这是不必要。在高速的PC上没关系，但在嵌入式系统中时，可能会因为硬件性能而无法满足实时需求。因此不建议放这里咯
-        // 只要不再次按下鼠标左键触发事件,则程序显示的一直是if条件里面被矩形函数处理过的temp图像，如果再次按下鼠标左键就进入if，不断更新被画矩形函数处理过的temp，因为处理速度快所以看起来画矩形的过程是连续的没有卡顿，因为每次重新画都是在没有框的基础上画出新的框因为人眼的残影延迟所以不会有拖影现象。每次更新矩形框的传入数据是重新被img（没有框）的数据覆盖的temp（即img.data==temp.data）和通过回调函数更新了的Box记录的坐标点数据。
-        // 依照上面所述，则当画完一个矩形后，如果在单击一下鼠标左键(没有拖动),则drawing_box==true,因为Box记录到的坐标点数据计算出来的长宽为0（因为未进行拖动,box.width,box.height为0，则画矩形函数rectangle（）所传入第二第三个参数即对角点的参数两个是相等的，所以矩形的对角线是0就无法画出矩形），则显示的是没有框的原图，此时显示的temp的数据应是和img相等的
-        if (drawing_box)
-        {                       // 不断更新正在画的矩形
-            image.copyTo(temp); // 这句放在这里是保证了每次更新矩形框都是在没有原图的基础上更新矩形框。
-            rectangle(temp, Point(box.x, box.y), Point(box.x + box.width, box.y + box.height), Scalar(0, 0, 255));
+          if (drawing_box)
+        {
+            // 不断更新正在画的矩形
+            image.copyTo(temp); 
+            rectangle(temp, Point(box.x, box.y), Point(box.x + box.width, box.y + box.height), Scalar(0, 0, 255),3);
 
             imshow("TargetRect", temp); // 显示
         }
-
-        if (waitKey(30) == 27)
-        {          // 检测是否有按下退出键
+        // 检测是否有按下退出键
+        int key = waitKey(30);
+        if (key == 27)
+        {          
             break; // 退出程序
+        }
+        else if (key == 115)
+        {
+            flag_save = true;
+            cv::destroyAllWindows();
+            break;
         }
 
         if (cv::getWindowProperty("TargetRect", cv::WND_PROP_AUTOSIZE) == -1)
@@ -90,22 +97,26 @@ int main(int argc, char **argv)
             break;
         }
     }
-    init_train_target("");
-    ImageData image_data;
-    std::vector<TargetRect> rects;
+    if (flag_save && box.width > 10 && box.height > 10)
+    {
+        init_train_target("");
+        ImageData image_data;
+        std::vector<TargetRect> rects;
 
-    image_data.channel = img.channels();
-    image_data.data = img.data;
-    image_data.height = img.rows;
-    image_data.width = img.cols;
-    TargetRect rect;
-    rect.id=argv[2];
-    rect.x=box.x+box.width/2;
-    rect.y=box.y+box.height/2;
-    rect.h=box.height;
-    rect.w=box.width;
-    rects.push_back(rect);
-    add_train_target(image_data,rects);
-    save_train_target("./model/");
+        image_data.channel = img.channels();
+        image_data.data = img.data;
+        image_data.height = img.rows;
+        image_data.width = img.cols;
+        TargetRect rect;
+        rect.id = argv[2];
+        rect.x = box.x + box.width / 2;
+        rect.y = box.y + box.height / 2;
+        rect.h = box.height;
+        rect.w = box.width;
+        rects.push_back(rect);
+        add_train_target(image_data, rects);
+        save_train_target("./model/");
+    }
+
     return 0;
 }
