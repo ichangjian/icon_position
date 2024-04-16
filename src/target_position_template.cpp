@@ -1,4 +1,5 @@
 #include "target_position_template.hpp"
+#include <fstream>
 #include <filesystem>
 ITPTemplate::ITPTemplate(/* args */)
 {
@@ -46,9 +47,20 @@ int ITPTemplate::init(const std::string &_model_path)
             aa.data = img;
             templates_.push_back(aa);
         }
+        if (fileExtension == ".tmp")
+        {
+            std::cout << inputFile << std::endl;
+
+            cv::Mat img = loadTMP(inputFile);
+            TargetPosition aa;
+            aa.id = inputFileName;
+            aa.data = img;
+            templates_.push_back(aa);
+        }
     }
     return 0;
 }
+
 int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vector<TargetPosition> &_targets)
 {
     for (size_t i = 0; i < templates_.size(); i++)
@@ -83,8 +95,34 @@ int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vect
     return 0;
 }
 
+cv::Mat ITPTemplate::loadTMP(const std::string &_file)
+{
+    std::ifstream in_file(_file, std::ios::binary);
+    if (!in_file.is_open())
+    {
+        std::cout << "cant load\n";
+        return cv::Mat();
+    }
+    int width, height;
+    in_file >> width >> height;
+    std::cout << width << "wh" << height << "\n";
+    cv::Mat target(height, width, CV_8UC1);
+    for (size_t i = 0; i < height; i++)
+    {
+        for (size_t j = 0; j < width; j++)
+        {
+            int pixel;
+            in_file >> pixel;
+            target.at<uchar>(i, j) = pixel;
+        }
+    }
+    cv::imwrite("tmp.png", target);
+    return target;
+}
+//=================================================================
 int TTPTemplate::init(const std::string &_model_path)
 {
+    flag_use_tmp_ = true;
     return 0;
 }
 
@@ -101,22 +139,50 @@ int TTPTemplate::train(const std::string &_save_path)
 {
     std::filesystem::path save_path(_save_path);
 
-    if (!std::filesystem::exists(save_path)) 
+    if (!std::filesystem::exists(save_path))
     {
-        try 
+        try
         {
             std::filesystem::create_directories(save_path);
-        } 
-        catch (const std::filesystem::filesystem_error& ex) 
+        }
+        catch (const std::filesystem::filesystem_error &ex)
         {
             std::cerr << "Error creating directory: " << ex.what() << std::endl;
             return -1; // 创建目录失败
         }
-    } 
+    }
     for (size_t i = 0; i < targets_.size(); i++)
     {
-        cv::imwrite(_save_path + "/" + targets_[i].id + ".png", targets_[i].data);
+        if (flag_use_tmp_)
+        {
+            saveTMP(_save_path + "/" + targets_[i].id + ".tmp", targets_[i].data);
+        }
+        else
+        {
+            cv::imwrite(_save_path + "/" + targets_[i].id + ".png", targets_[i].data);
+        }
     }
+
+    return 0;
+}
+
+int TTPTemplate::saveTMP(const std::string &_file, const cv::Mat &_target)
+{
+    std::ofstream out_file(_file, std::ios::binary);
+    if (!out_file.is_open())
+    {
+        std::cout << "cant save\n";
+        return -1;
+    }
+    out_file << _target.cols << " " << _target.rows;
+    for (size_t i = 0; i < _target.rows; i++)
+    {
+        for (size_t j = 0; j < _target.cols; j++)
+        {
+            out_file << " " << (int)_target.at<uchar>(i, j);
+        }
+    }
+    out_file.close();
 
     return 0;
 }

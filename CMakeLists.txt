@@ -1,10 +1,23 @@
 cmake_minimum_required(VERSION 3.0)
 project(TARGET_POSITION)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-# 如果想要生成的可执行文件拥有符号表，可以gdb调试，就直接加上这句
-# add_definitions("-Wall -g")
-add_definitions(-DWINDOWS)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_BUILD_TYPE "Release")
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    MESSAGE(STATUS "current platform: Linux ")
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    MESSAGE(STATUS "current platform: Windows")
+    add_definitions("-DWINDOWS")
+    option(CMAKE_USE_WIN32_THREADS_INIT "using WIN32 threads" ON)
+ELSE()
+    MESSAGE(STATUS "other platform: ${CMAKE_SYSTEM_NAME}")
+ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+set(CMAKE_CXX_STANDARD 17)
+
 find_package(OpenCV)
 
 # 规定.h头文件路径
