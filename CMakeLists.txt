@@ -22,6 +22,7 @@ find_package(OpenCV)
 
 # 规定.h头文件路径
 include_directories(${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/common
     ${OpenCV_INCLUDE_DIRS})
 
 

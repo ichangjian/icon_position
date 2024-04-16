@@ -1,6 +1,7 @@
 #include "target_position_template.hpp"
 #include <fstream>
 #include <filesystem>
+#include "cout_log.h"
 
 template <typename T>
 T ReadBinaryLittleEndian(std::istream *stream)
@@ -20,25 +21,25 @@ ITPTemplate::~ITPTemplate()
 
 int ITPTemplate::init(const std::string &_model_path)
 {
-    std::cout << _model_path << std::endl;
+    CLOGINFO << _model_path ;
 
     std::filesystem::path model_path(_model_path);
     if (!exists(model_path)) // 必须先检测目录是否存在才能使用文件入口.
     {
-        std::cout << "error" << std::endl;
+        CLOGERR << "model path isnt exist";
         return -1;
     }
 
     std::filesystem::directory_entry entry(model_path);                 // 文件入口
     if (entry.status().type() != std::filesystem::file_type::directory) // 这里用了C++11的强枚举类型
     {
-        std::cout << "error" << std::endl;
+        CLOGERR << "model path isnt directory";
         return -1;
     }
     std::filesystem::directory_iterator list(model_path); // 文件入口容器
     for (auto &it : list)
     {
-        std::cout << it.path().filename() << std::endl; // 通过文件入口（it）获取path对象，再得到path对象的文件名，将之输出
+        // std::cout << it.path().filename() << std::endl; // 通过文件入口（it）获取path对象，再得到path对象的文件名，将之输出
 
         std::string inputFile = it.path().string(); // 替换为你的文件路径
 
@@ -48,9 +49,14 @@ int ITPTemplate::init(const std::string &_model_path)
         std::string fileExtension = std::filesystem::path(inputFile).extension().string();
         if (fileExtension == ".png")
         {
-            std::cout << inputFile << std::endl;
+            CLOGINFO << "load "<< inputFile;
 
             cv::Mat img = cv::imread(inputFile, 0);
+            if (img.empty())
+            {
+        CLOGERR << "can't load";
+                continue;
+            }
             TargetPosition aa;
             aa.id = inputFileName;
             aa.data = img;
@@ -58,15 +64,27 @@ int ITPTemplate::init(const std::string &_model_path)
         }
         if (fileExtension == ".tmp")
         {
-            std::cout << inputFile << std::endl;
+            CLOGINFO << "load " << inputFile;
 
             cv::Mat img = loadTMP(inputFile);
+            if (img.empty())
+            {
+        CLOGERR << "can't load";
+                continue;
+            }
+            
             TargetPosition aa;
             aa.id = inputFileName;
             aa.data = img;
             templates_.push_back(aa);
         }
     }
+    if (templates_.size()==0)
+    {
+        CLOGERR << "can't init";
+        return -1;
+    }
+    
     return 0;
 }
 
@@ -86,7 +104,6 @@ int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vect
         // matchLoc = maxLoc;
         if (maxVal > 0.8)
         {
-            std::cout << maxLoc << "\n";
             TargetPosition target;
             target.id = templates_[i].id;
             target.x = maxLoc.x + templates_[i].data.cols / 2;
@@ -94,10 +111,11 @@ int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vect
             target.w = templates_[i].data.cols;
             target.h = templates_[i].data.rows;
 
+            CLOGINFO << "tag " << target.id << " value "
+                     << maxVal << " " << target.x << "-" << target.y;
             _targets.push_back(target);
         }
 
-        std::cout << "maxVal" << maxVal << std::endl;
     }
 
     return 0;
@@ -108,7 +126,6 @@ cv::Mat ITPTemplate::loadTMP(const std::string &_file)
     std::ifstream in_file(_file, std::ios::binary);
     if (!in_file.is_open())
     {
-        std::cout << "cant load\n";
         return cv::Mat();
     }
 
@@ -179,7 +196,7 @@ int TTPTemplate::saveTMP(const std::string &_file, const cv::Mat &_target)
     std::ofstream out_file(_file, std::ios::binary);
     if (!out_file.is_open())
     {
-        std::cout << "cant save\n";
+        std::cout << "can't save\n";
         return -1;
     }
     out_file.write((char*)&_target.rows,sizeof(int));

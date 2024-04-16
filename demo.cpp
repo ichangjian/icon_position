@@ -3,13 +3,13 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
-
+#include "cout_log.h"
 int test_image(const std::string &_file)
 {
     cv::Mat image = cv::imread(_file); // 读取图像
     if (image.empty())
     {
-        std::cout << "cant read " << _file << std::endl;
+        CLOGERR << "can't read " << _file ;
         return -1;
     }
     cv::Mat img;
@@ -29,7 +29,6 @@ int test_image(const std::string &_file)
     for (size_t i = 0; i < rects.size(); i++)
     {
         cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
-        std::cout << box << "\n";
         cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
         cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
         cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
@@ -44,6 +43,7 @@ int test_image(const std::string &_file)
     cv::imshow("TargetResult", image);
     cv::waitKey();
     release_target_position(handle);
+    CLOGINFO << "exit";
     return 0;
 }
 
@@ -52,7 +52,7 @@ int test_video(const std::string &_file)
     cv::VideoCapture cap(_file);
     if (!cap.isOpened())
     {
-        std::cout << "cant read " << _file << std::endl;
+        CLOGERR << "can't read " << _file;
         return -1;
     }
 
@@ -84,7 +84,7 @@ int test_video(const std::string &_file)
         for (size_t i = 0; i < rects.size(); i++)
         {
             cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
-            std::cout << box << "\n";
+
             cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
             cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
             cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
@@ -108,6 +108,7 @@ int test_video(const std::string &_file)
     cap.release(); // 释放资源
 
     release_target_position(handle);
+    CLOGINFO << "exit";
     return 0;
 }
 
@@ -115,18 +116,20 @@ int main(int argc, char **argv)
 {
     if (argc != 2)
     {
-        std::cout << "input error\n";
-        std::cout << "Usage: path_image_or_video\n";
+        CLOGERR << "input error";
+        CLOGINFO << "Usage: path_image_or_video";
         return -1;
     }
     std::string file = argv[1];
     std::string fileExtension = std::filesystem::path(file).extension().string();
     if (fileExtension == ".png" || fileExtension == ".jpg")
     {
+        CLOGINFO << "test image";
         return test_image(file);
     }
     else
     {
+        CLOGINFO<< "test video";
         return test_video(file);
     }
 
