@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include "cout_log.h"
+
 using namespace cv;
 using namespace std;
 int g_nCount = 2;
@@ -53,8 +55,8 @@ int main(int argc, char **argv)
 {
     if (argc != 3)
     {
-        std::cout << "input error\n";
-        std::cout << "Usage: path_image target_tag\n";
+        CLOGERR << "input error";
+        CLOGINFO << "Usage: path_image target_tag";
         return -1;
     }
     cv::Mat image = cv::imread(argv[1]); // 读取图像
@@ -70,18 +72,18 @@ int main(int argc, char **argv)
     bool flag_save = false;
     while (1)
     {
-          if (drawing_box)
+        if (drawing_box)
         {
             // 不断更新正在画的矩形
-            image.copyTo(temp); 
-            rectangle(temp, Point(box.x, box.y), Point(box.x + box.width, box.y + box.height), Scalar(0, 0, 255),3);
+            image.copyTo(temp);
+            rectangle(temp, Point(box.x, box.y), Point(box.x + box.width, box.y + box.height), Scalar(0, 0, 255), 3);
 
             imshow("TargetRect", temp); // 显示
         }
         // 检测是否有按下退出键
         int key = waitKey(30);
         if (key == 27)
-        {          
+        {
             break; // 退出程序
         }
         else if (key == 115)
@@ -99,6 +101,7 @@ int main(int argc, char **argv)
     }
     if (flag_save && box.width > 10 && box.height > 10)
     {
+        CLOGINFO << "save " << argv[2];
         init_train_target("");
         ImageData image_data;
         std::vector<TargetRect> rects;
@@ -116,6 +119,13 @@ int main(int argc, char **argv)
         rects.push_back(rect);
         add_train_target(image_data, rects);
         save_train_target("./model/");
+        CLOGINFO << "save ./model/" << argv[2];
+
+        CLOGINFO << "exit";
+    }
+    else
+    {
+        CLOGINFO << "exit without save";
     }
 
     return 0;

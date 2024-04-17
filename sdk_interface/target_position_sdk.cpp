@@ -2,8 +2,10 @@
 #include "target_position_sdk.h"
 #include <opencv2/opencv.hpp>
 #include "cout_log.h"
+std::string version="target_position_version_v0.1_20240417084605";
 void *create_target_position()
 {
+    CLOGINFO << version;
     CLOGINFO << "enter create_target_position";
     ITPTemplate *ITPT = new ITPTemplate();
     CLOGINFO << "leave create_target_position";
@@ -48,6 +50,7 @@ int release_target_position(void *handle)
 TTPTemplate TTPT;
 int init_train_target(const std::string &config_folder)
 {
+    CLOGINFO << version;
     CLOGINFO << "enter init_train_target";
     TTPT.init(config_folder);
     CLOGINFO << "leave init_train_target";

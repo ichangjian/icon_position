@@ -196,7 +196,7 @@ int TTPTemplate::saveTMP(const std::string &_file, const cv::Mat &_target)
     std::ofstream out_file(_file, std::ios::binary);
     if (!out_file.is_open())
     {
-        std::cout << "can't save\n";
+        CLOGERR << "can't save "<< _file;
         return -1;
     }
     out_file.write((char*)&_target.rows,sizeof(int));
