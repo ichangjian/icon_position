@@ -20,20 +20,15 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(OpenCV)
 
-# 规定.h头文件路径
-include_directories(${PROJECT_SOURCE_DIR}/src
+include_directories(
     ${PROJECT_SOURCE_DIR}/common
     ${OpenCV_INCLUDE_DIRS})
 
-
-add_library(target_position SHARED 
-        sdk_interface/target_position_sdk.cpp
-        src/target_position_template.cpp)
-target_link_libraries(target_position ${OpenCV_LIBS})
-
-# 生成可执行文件
-
 include_directories(${PROJECT_SOURCE_DIR}/sdk_interface)
+
+add_subdirectory(sdk_interface)
+add_subdirectory(src)
+
 
 add_executable(demo demo.cpp )
 target_link_libraries(demo target_position  ${OpenCV_LIBS})
