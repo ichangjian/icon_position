@@ -90,10 +90,15 @@ int ITPTemplate::init(const std::string &_model_path)
 
 int ITPTemplate::getPosition(double _timestamp, const cv::Mat &_image, std::vector<TargetPosition> &_targets)
 {
+    cv::Mat gray = _image;
+    if (_image.channels()==3)
+    {
+        cv::cvtColor(_image, gray, cv::COLOR_BGR2GRAY);
+    }
     for (size_t i = 0; i < templates_.size(); i++)
     {
         cv::Mat result;
-        cv::matchTemplate(_image, templates_[i].data, result, 5);
+        cv::matchTemplate(gray, templates_[i].data, result, 5);
         double minVal;
         double maxVal;
         cv::Point minLoc;

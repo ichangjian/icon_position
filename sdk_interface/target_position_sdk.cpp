@@ -1,20 +1,33 @@
 #include "target_position_template.hpp"
+#include "target_position_ocrpp.hpp"
+#include "target_position.hpp"
 #include "target_position_sdk.h"
 #include <opencv2/opencv.hpp>
 #include "cout_log.h"
-std::string version="target_position_version_v0.1_20240417084605";
-void *create_target_position()
+std::string version = "target_position_version_v0.1_20240417084605";
+
+void *create_target_position(const std::string &method)
 {
     CLOGINFO << version;
     CLOGINFO << "enter create_target_position";
-    ITPTemplate *ITPT = new ITPTemplate();
+
+    CLOGINFO << "method : " + method;
+    InferenceTargetPosition *ITPT = NULL;
+    if (method == "template_opencv")
+    {
+        ITPT = new ITPTemplate();
+    }
+    else if (method == "ocr_paddle")
+    {
+        ITPT = new ITPOCRPP();
+    }
     CLOGINFO << "leave create_target_position";
     return ITPT;
 }
 int init_target_position(void *handle, const std::string &pretraining_folder)
 {
     CLOGINFO << "enter init_target_position";
-    int ret = ((ITPTemplate *)handle)->init(pretraining_folder);
+    int ret = ((InferenceTargetPosition *)handle)->init(pretraining_folder);
     CLOGINFO << "leave init_target_position";
     return ret;
 }
@@ -22,9 +35,18 @@ int init_target_position(void *handle, const std::string &pretraining_folder)
 int get_target_position(void *handle, const ImageData &image_data, std::vector<TargetRect> &rects)
 {
     CLOGINFO << "enter get_target_position";
-    cv::Mat img(image_data.height, image_data.width, CV_8UC1, image_data.data);
+    cv::Mat img;
+    if (image_data.channel == 1)
+    {
+        img = cv::Mat(image_data.height, image_data.width, CV_8UC1, image_data.data);
+    }
+    else if (image_data.channel == 3)
+    {
+        img = cv::Mat(image_data.height, image_data.width, CV_8UC3, image_data.data);
+    }
+
     std::vector<TargetPosition> targets;
-    ((ITPTemplate *)handle)->getPosition(image_data.timestamp, img, targets);
+    ((InferenceTargetPosition *)handle)->getPosition(image_data.timestamp, img, targets);
     for (size_t i = 0; i < targets.size(); i++)
     {
         TargetRect rect;
@@ -43,7 +65,7 @@ int get_target_position(void *handle, const ImageData &image_data, std::vector<T
 int release_target_position(void *handle)
 {
     CLOGINFO << "enter release_target_position";
-    delete (ITPTemplate *)handle;
+    delete (InferenceTargetPosition *)handle;
     CLOGINFO << "leave release_target_position";
     return 0;
 }

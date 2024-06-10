@@ -5,3 +5,4 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(template_opencv)
+add_subdirectory(ocr_paddle)

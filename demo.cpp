@@ -4,45 +4,89 @@
 #include <opencv2/opencv.hpp>
 #include <filesystem>
 #include "cout_log.h"
+
+std::vector<void *> get_handle(const std::string &_config_file)
+{
+    std::vector<void *> handles;
+
+    cv::FileStorage fs(_config_file, cv::FileStorage::READ);
+    if (!fs.isOpened())
+    {
+        CLOGERR << "can't open " << _config_file;
+        return handles;
+    }
+
+    cv::FileNode objects = fs["object"];
+
+    // iterate through a sequence using FileNodeIterator
+    cv::FileNodeIterator it = objects.begin(), it_end = objects.end();
+    for (int idx = 0; it != it_end; ++it, idx++)
+    {
+        std::string method = (*it)["method"];
+        void *handle = create_target_position(method);
+        std::string model_path = (*it)["model_path"];
+        init_target_position(handle, model_path);
+        handles.push_back(handle);
+    }
+    fs.release();
+
+    return handles;
+}
+
+void release_handle(std::vector<void *> &_handles)
+{
+    for (auto handle : _handles)
+    {
+        release_target_position(handle);
+    }
+    return;
+}
+
 int test_image(const std::string &_file)
 {
     cv::Mat image = cv::imread(_file); // 读取图像
     if (image.empty())
     {
-        CLOGERR << "can't read " << _file ;
+        CLOGERR << "can't read " << _file;
         return -1;
     }
     cv::Mat img;
 
     cv::cvtColor(image, img, cv::COLOR_BGR2GRAY);
-    void *handle = create_target_position();
-    init_target_position(handle, "./model/");
-
     ImageData image_data;
-    image_data.channel = img.channels();
-    image_data.data = img.data;
-    image_data.height = img.rows;
-    image_data.width = img.cols;
-    std::vector<TargetRect> rects;
-    get_target_position(handle, image_data, rects);
+    image_data.channel = image.channels();
+    image_data.data = image.data;
+    image_data.height = image.rows;
+    image_data.width = image.cols;
 
-    for (size_t i = 0; i < rects.size(); i++)
+    std::vector<void *> handles = get_handle("config.yaml");
+
+    // iterate through a sequence using FileNodeIterator
+    for (auto &handle : handles)
     {
-        cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
-        cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
-        cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
-        cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
+        std::vector<TargetRect> rects;
+        get_target_position(handle, image_data, rects);
+
+        for (size_t i = 0; i < rects.size(); i++)
+        {
+            cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
+            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
+            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
+            // cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
+            cv::putText(image, rects[i].id, cv::Point(box.x, box.y), cv::Scalar(0, 255, 0), cv::FontFace("C:/Windows/Fonts/simsun.ttc"), 20);
+            std::cout << rects[i].id << "-id\n";
+        }
+        if (rects.size() == 0)
+        {
+            cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
+        }
     }
-    if (rects.size() == 0)
-    {
-        cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
-    }
+    release_handle(handles);
 
     cv::namedWindow("TargetResult", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO); // 窗口
     cv::resizeWindow("TargetResult", 1280, 720);
     cv::imshow("TargetResult", image);
     cv::waitKey();
-    release_target_position(handle);
     CLOGINFO << "exit";
     return 0;
 }
@@ -56,8 +100,7 @@ int test_video(const std::string &_file)
         return -1;
     }
 
-    void *handle = create_target_position();
-    init_target_position(handle, "./model/");
+    std::vector<void *> handles = get_handle("./config.yaml");
     cv::namedWindow("TargetResult", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO); // 窗口
     cv::resizeWindow("TargetResult", 1280, 720);
     cv::Mat frame;
@@ -73,29 +116,34 @@ int test_video(const std::string &_file)
 
         cv::cvtColor(frame, img, cv::COLOR_BGR2GRAY);
         ImageData image_data;
-        image_data.channel = img.channels();
-        image_data.data = img.data;
-        image_data.height = img.rows;
-        image_data.width = img.cols;
-        std::vector<TargetRect> rects;
-        get_target_position(handle, image_data, rects);
+        image_data.channel = frame.channels();
+        image_data.data = frame.data;
+        image_data.height = frame.rows;
+        image_data.width = frame.cols;
 
-        cv::Mat image = frame;
-        for (size_t i = 0; i < rects.size(); i++)
+        cv::Mat image = frame.clone();
+
+        for (auto &handle : handles)
         {
-            cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
+            std::vector<TargetRect> rects;
+            get_target_position(handle, image_data, rects);
 
-            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
-            cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
-            cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
-        }
-        if (rects.size() == 0)
-        {
-            cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
-        }
+            for (size_t i = 0; i < rects.size(); i++)
+            {
+                cv::Rect box(rects[i].x - rects[i].w / 2, rects[i].y - rects[i].h / 2, rects[i].w, rects[i].h);
 
+                cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(255, 255, 255), 7);
+                cv::rectangle(image, cv::Point(box.x, box.y), cv::Point(box.x + box.width, box.y + box.height), cv::Scalar(0, 0, 255), 3);
+                // cv::putText(image, rects[i].id, cv::Point(box.x, box.y), 1, 2, cv::Scalar(0, 255, 0), 3);
+                cv::putText(image, rects[i].id, cv::Point(box.x, box.y), cv::Scalar(0, 255, 0), cv::FontFace("C:/Windows/Fonts/simsun.ttc"), 20);
+            }
+            if (rects.size() == 0)
+            {
+                cv::putText(image, "empty", cv::Point(image.cols / 2, image.rows / 2), 2, 3, cv::Scalar(0, 0, 255), 3);
+            }
+        }
         cv::imshow("TargetResult", image);
-        if (cv::waitKey(1) == 27)
+        if (cv::waitKey(10) == 27)
         {          // 检测是否有按下退出键
             break; // 退出程序
         }
@@ -107,7 +155,7 @@ int test_video(const std::string &_file)
     }
     cap.release(); // 释放资源
 
-    release_target_position(handle);
+    release_handle(handles);
     CLOGINFO << "exit";
     return 0;
 }
@@ -120,6 +168,7 @@ int main(int argc, char **argv)
         CLOGINFO << "Usage: path_image_or_video";
         return -1;
     }
+    SetConsoleOutputCP(CP_UTF8);
     std::string file = argv[1];
     std::string fileExtension = std::filesystem::path(file).extension().string();
     if (fileExtension == ".png" || fileExtension == ".jpg")
@@ -129,97 +178,9 @@ int main(int argc, char **argv)
     }
     else
     {
-        CLOGINFO<< "test video";
+        CLOGINFO << "test video";
         return test_video(file);
     }
 
     return 0;
-}
-
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
-#include <iostream>
-using namespace std;
-using namespace cv;
-bool use_mask;
-Mat img;
-Mat templ;
-Mat mask;
-Mat result;
-const char *image_window = "Source Image";
-const char *result_window = "Result window";
-int match_method;
-int max_Trackbar = 5;
-void MatchingMethod(int, void *);
-const char *keys =
-    "{ help h| | Print help message. }"
-    "{ @input1 | Template_Matching_Original_Image.jpg | image_name }"
-    "{ @input2 | Template_Matching_Template_Image.jpg | template_name }"
-    "{ @input3 | | mask_name }";
-int maina(int argc, char **argv)
-{
-    CommandLineParser parser(argc, argv, keys);
-
-    img = imread((parser.get<String>("@input1")));
-    templ = imread((parser.get<String>("@input2")), IMREAD_COLOR);
-    if (argc > 3)
-    {
-        use_mask = true;
-        mask = imread(samples::findFile(parser.get<String>("@input3")), IMREAD_COLOR);
-    }
-    if (img.empty() || templ.empty() || (use_mask && mask.empty()))
-    {
-        cout << "Can't read one of the images" << endl;
-        return EXIT_FAILURE;
-    }
-    namedWindow(image_window, WINDOW_AUTOSIZE);
-    namedWindow(result_window, WINDOW_AUTOSIZE);
-    const char *trackbar_label = "Method: \n 0: SQDIFF \n 1: SQDIFF NORMED \n 2: TM CCORR \n 3: TM CCORR NORMED \n 4: TM COEFF \n 5: TM COEFF NORMED";
-    createTrackbar(trackbar_label, image_window, &match_method, max_Trackbar, MatchingMethod);
-    MatchingMethod(0, 0);
-    waitKey(0);
-    return EXIT_SUCCESS;
-}
-void MatchingMethod(int, void *)
-{
-    Mat img_display;
-    img.copyTo(img_display);
-    int result_cols = img.cols - templ.cols + 1;
-    int result_rows = img.rows - templ.rows + 1;
-    result.create(result_rows, result_cols, CV_32FC1);
-    bool method_accepts_mask = (TM_SQDIFF == match_method || match_method == TM_CCORR_NORMED);
-    if (use_mask && method_accepts_mask)
-    {
-        matchTemplate(img, templ, result, match_method, mask);
-    }
-    else
-    {
-        matchTemplate(img, templ, result, match_method);
-    }
-    // normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
-    double minVal;
-    double maxVal;
-    Point minLoc;
-    Point maxLoc;
-    Point matchLoc;
-    minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-    if (match_method == TM_SQDIFF || match_method == TM_SQDIFF_NORMED)
-    {
-        matchLoc = minLoc;
-        std::cout << "minVal" << minVal << std::endl;
-        ;
-    }
-    else
-    {
-        matchLoc = maxLoc;
-
-        std::cout << "maxVal" << maxVal << std::endl;
-        ;
-    }
-    rectangle(img_display, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-    rectangle(result, matchLoc, Point(matchLoc.x + templ.cols, matchLoc.y + templ.rows), Scalar::all(0), 2, 8, 0);
-    imshow(image_window, img_display);
-    imshow(result_window, result);
-    return;
 }

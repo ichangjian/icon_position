@@ -35,8 +35,13 @@ struct TargetRect
 };
 
 /// @brief 创建target position 对象
-/// @return  运行成功返回target position 对象的指针，出错返回 NULL
-TGT_EXPORT void *create_target_position();
+/// @return  
+
+
+/// @brief 创建target position 对象
+/// @param method 可以设置template_opencv、ocr_paddle
+/// @return 运行成功返回target position 对象的指针，出错返回 NULL
+TGT_EXPORT void *create_target_position(const std::string &method);
 
 /// @brief 初始化程序
 /// @param handle 是 target position 对象的指针

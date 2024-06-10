@@ -1,0 +1,12 @@
+%YAML:1.0
+
+object:
+  -
+    method: "template_opencv"    # template_opencv ocr_paddle
+    model_path: "./model_tmpl/"
+  -
+    method: "ocr_paddle"    # template_opencv ocr_paddle
+    model_path: "./model_ocr/"
+
+
+

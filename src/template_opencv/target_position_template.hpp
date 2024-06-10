@@ -1,7 +1,7 @@
 #pragma once
 #include "target_position.hpp"
 
-class ITPTemplate : public InferenceTargetPosition
+ class TGT_EXPORT ITPTemplate : public InferenceTargetPosition
 {
 private:
     std::vector<TargetPosition> templates_;
@@ -14,7 +14,7 @@ public:
     ~ITPTemplate();
 };
 
-class TTPTemplate : public TrainTargetPosition
+ class TGT_EXPORT TTPTemplate : public TrainTargetPosition
 {
 private:
     std::vector<TargetPosition> targets_;

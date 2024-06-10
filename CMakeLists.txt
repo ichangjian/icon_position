@@ -10,7 +10,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Windows")
     MESSAGE(STATUS "current platform: Windows")
     add_definitions("-DWINDOWS")
-    option(CMAKE_USE_WIN32_THREADS_INIT "using WIN32 threads" ON)
 ELSE()
     MESSAGE(STATUS "other platform: ${CMAKE_SYSTEM_NAME}")
 ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -18,7 +17,7 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(OpenCV)
+find_package(OpenCV 5)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/common
